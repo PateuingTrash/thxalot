@@ -51,6 +51,8 @@ local DAMAGE_AMOUNT = 50
 local KILL_AURA_RANGE = 200 
 local AUTO_FARM_RANGE = 200 
 local MAX_MOBS_TO_DAMAGE = 13 
+local returnY = 2
+local MIN_SAFE_HEALTH = 100 
 
 local function multiDamageAllMobs()
     local mobsFolder = game.Workspace:WaitForChild("World"):WaitForChild("Mobs")
@@ -59,7 +61,6 @@ local function multiDamageAllMobs()
     local mobsToDamage = {}
 
     for _, mob in pairs(mobsFolder:GetChildren()) do
-
         local humanoid = mob:FindFirstChild("Humanoid")
         if humanoid and humanoid.Health > 0 then
             mobCount = mobCount + 1
@@ -70,6 +71,16 @@ local function multiDamageAllMobs()
 
     for _, mob in pairs(mobsToDamage) do
         spawn(function()
+            local character = game.Players.LocalPlayer.Character
+            if not character then return end
+
+            local humanoid = character:FindFirstChild("Humanoid")
+            if not humanoid or humanoid.Health <= MIN_SAFE_HEALTH then
+                print("MultiDamage suspenso: Saúde baixa.")
+                wait(3) 
+                return
+            end
+
             if RemotePath:FindFirstChild("DamageFire") then
                 local args = {
                     [1] = mob,
@@ -137,7 +148,14 @@ local function AutoFarm()
             if not character then continue end
 
             local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
-            if not humanoidRootPart then continue end
+            local humanoid = character:FindFirstChild("Humanoid")
+            if not humanoidRootPart or not humanoid then continue end
+
+            if humanoid.Health <= MIN_SAFE_HEALTH then
+                print("AutoFarm suspenso: Saúde baixa.")
+                wait(3) -- Tempo suspenso
+                continue
+            end
 
             local mobsFolder = game.Workspace:WaitForChild("World"):WaitForChild("Mobs")
             local mobFound = false
@@ -154,7 +172,7 @@ local function AutoFarm()
                     if distance <= AUTO_FARM_RANGE then
                         mobFound = true
                         local targetCFrame = CFrame.new(
-                            mob.HumanoidRootPart.Position + Vector3.new(0, HEIGHT_OFFSET, 0)  
+                            mob.HumanoidRootPart.Position + Vector3.new(0, HEIGHT_OFFSET, 0)
                         )
 
                         local tween = TweenService:Create(
@@ -164,7 +182,7 @@ local function AutoFarm()
                         )
 
                         tween:Play()
-                        tween.Completed:Wait()  
+                        tween.Completed:Wait()
 
                         humanoidRootPart.Velocity = Vector3.new(0, 0, 0)
                         humanoidRootPart.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
@@ -176,7 +194,7 @@ local function AutoFarm()
             end
 
             if not mobFound then
-                wait(5) 
+                wait(5)
             else
                 wait(0.1)
             end
@@ -193,7 +211,14 @@ local function runKillAura()
             if not character then continue end
 
             local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
-            if not humanoidRootPart then continue end
+            local humanoid = character:FindFirstChild("Humanoid")
+            if not humanoidRootPart or not humanoid then continue end
+
+            if humanoid.Health <= MIN_SAFE_HEALTH then
+                print("Kill Aura suspensa: Saúde baixa.")
+                wait(3) 
+                continue
+            end
 
             local mobsFolder = game.Workspace:WaitForChild("World"):WaitForChild("Mobs")
 
@@ -218,7 +243,7 @@ local function runKillAura()
                                 warn("Remote 'DamageFire' not found!")
                             end
 
-                            wait(0.5)
+                            wait(1) 
                             cooldowns[mob] = nil
                         end)
                     end
@@ -227,8 +252,74 @@ local function runKillAura()
             wait(0.1) 
         end
     end)
+end   
+
+local function getCurrentWorld()
+    -- Supondo que o índice do mundo possa ser identificado pela estrutura de 'Worlds'
+    return 1  -- Retorne o número do mundo atual conforme sua lógica.
 end
 
+-- Função para verificar a posição da seção e parar o Auto-Farm
+local function stopAutoFarmIfAtFinalSection()
+    print("Verificando a posição do jogador na Dungeon...")
+
+    -- Obter o mundo atual e a seção da Dungeon
+    local worldIndex = getCurrentWorld()  -- Utiliza a função que já foi definida
+    local sectionPositionPath = "Worlds[" .. tostring(worldIndex) .. "].Dungeon.SectionPosition"
+
+    -- Verifique se a estrutura existe
+    local sectionPosition = game.Workspace:FindFirstChild("World") and game.Workspace.World:FindFirstChild("Worlds")
+        and game.Workspace.World.Worlds[tostring(worldIndex)] and game.Workspace.World.Worlds[tostring(worldIndex)].Dungeon:FindFirstChild("SectionPosition")
+
+    if sectionPosition then
+        print("Seção encontrada na posição: " .. tostring(sectionPosition.Position))
+
+        -- Verifica a posição do jogador para determinar se ele está na seção final da Dungeon
+        local character = game.Players.LocalPlayer.Character
+        if character and character:FindFirstChild("HumanoidRootPart") then
+            local playerPosition = character.HumanoidRootPart.Position
+            local distanceToSection = (playerPosition - sectionPosition.Position).Magnitude
+
+            print("Distância do jogador para a seção final: " .. distanceToSection)
+
+            -- Se o jogador estiver próximo da posição final, pare o Auto-Farm
+            if distanceToSection < 10 then
+                print("Jogador na seção final. Parando o Auto-Farm.")
+                AutoFarmEnabled = false  -- Desliga o Auto-Farm
+            else
+                print("Jogador não está na seção final. Continuando o Auto-Farm.")
+            end
+        else
+            print("HumanoidRootPart não encontrado!")
+        end
+    else
+        print("Seção não encontrada no caminho: " .. sectionPositionPath)
+    end
+end
+
+local function returnToInitialY()
+    local character = game.Players.LocalPlayer.Character
+    local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+
+    if humanoidRootPart then
+        local targetPosition = Vector3.new(humanoidRootPart.Position.X, returnY, humanoidRootPart.Position.Z)
+        local targetCFrame = CFrame.new(targetPosition)
+
+        -- Criando o Tween para retorno suave
+        local tween = TweenService:Create(
+            humanoidRootPart,
+            TweenInfo.new(0.5, Enum.EasingStyle.Linear), -- Defina o tempo conforme necessário (0.5s é um exemplo)
+            {CFrame = targetCFrame}
+        )
+
+        tween:Play()
+        tween.Completed:Wait()
+
+        print("Retornando para a posição Y =", returnY)
+    else
+        print("HumanoidRootPart não encontrado ao retornar!")
+    end
+end
 local Window = Rayfield:CreateWindow({
     Name = "Bey Hub - Pixel Slayer ⚔️",
     LoadingTitle = "[--Bey Hub--]",
@@ -266,37 +357,23 @@ MainTab:CreateToggle({
         if character then
             local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
             if humanoidRootPart then
-                print("HumanoidRootPart encontrado:", humanoidRootPart.Position)
-
                 if Value then
-                    previousPositionY = humanoidRootPart.Position.Y
-                    print("Posição Y antes de ativar AutoFarm:", previousPositionY)
-
-                    humanoidRootPart.CFrame = CFrame.new(humanoidRootPart.Position.X, -15, humanoidRootPart.Position.Z)
-                    print("Posição Y após ativar AutoFarm:", -15)
-
-                    AutoFarm()  
+                    -- Ativa o AutoFarm, ajustando a altura Y com base em HEIGHT_OFFSET
+                    humanoidRootPart.CFrame = CFrame.new(humanoidRootPart.Position.X, HEIGHT_OFFSET, humanoidRootPart.Position.Z)
+                    AutoFarm()
                 else
-                    print("Posição Y antes de desativar AutoFarm:", humanoidRootPart.Position.Y)
-
-                    if previousPositionY then
-                        humanoidRootPart.CFrame = CFrame.new(humanoidRootPart.Position.X, previousPositionY, humanoidRootPart.Position.Z)
-                        print("Posição Y restaurada para:", previousPositionY)
-                    else
-                        print("Nenhuma posição Y anterior encontrada!")
-                    end
-
-                    AutoFarmEnabled = false  
+                    -- Desliga o AutoFarm e retorna para a posição inicial no eixo Y com um Tween suave
+                    returnToInitialY()
+                    AutoFarmEnabled = false
                 end
             else
-                print("HumanoidRootPart não encontrado!")  
+                print("HumanoidRootPart não encontrado!")
             end
         else
-            print("Personagem não encontrado!")  
+            print("Personagem não encontrado!")
         end
     end
 })
-
 MainTab:CreateToggle({
     Name = "Kill Aura ☠️",
     CurrentValue = false,
@@ -349,7 +426,7 @@ Rayfield:Notify({
     Duration = 7
 })
 Rayfield:Notify({
-    Title = "⚙️ UPD v0.01 ⚙️",
-    Content = "🛠️ Load, AutoFarm/KillAura fixed. 🛠️",
+    Title = "⚙️ UPD v0.02 ⚙️",
+    Content = "🛠️ Crash fixed. 🛠️",
     Duration = 9
 })
