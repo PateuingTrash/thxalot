@@ -418,6 +418,6 @@ Rayfield:Notify({
 })
 Rayfield:Notify({
     Title = "⚙️ UPD v0.02 ⚙️",
-    Content = "🛠️ Crash fixed. 🛠️",
+    Content = "🛠️ Fixing crash. 🛠️",
     Duration = 9
 })
