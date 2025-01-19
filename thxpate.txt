@@ -76,7 +76,7 @@ local function multiDamageAllMobs()
 
             local humanoid = character:FindFirstChild("Humanoid")
             if not humanoid or humanoid.Health <= MIN_SAFE_HEALTH then
-                print("MultiDamage suspenso: Saúde baixa.")
+                print("MultiDamage suspended: low health.")
                 wait(3) 
                 return
             end
@@ -152,7 +152,7 @@ local function AutoFarm()
             if not humanoidRootPart or not humanoid then continue end
 
             if humanoid.Health <= MIN_SAFE_HEALTH then
-                print("AutoFarm suspenso: Saúde baixa.")
+                print("AutoFarm suspended: low health.")
                 wait(3) -- Tempo suspenso
                 continue
             end
@@ -215,7 +215,7 @@ local function runKillAura()
             if not humanoidRootPart or not humanoid then continue end
 
             if humanoid.Health <= MIN_SAFE_HEALTH then
-                print("Kill Aura suspensa: Saúde baixa.")
+                print("Kill Aura suspended: low health.")
                 wait(3) 
                 continue
             end
@@ -255,26 +255,21 @@ local function runKillAura()
 end   
 
 local function getCurrentWorld()
-    -- Supondo que o índice do mundo possa ser identificado pela estrutura de 'Worlds'
     return 1  -- Retorne o número do mundo atual conforme sua lógica.
 end
 
--- Função para verificar a posição da seção e parar o Auto-Farm
 local function stopAutoFarmIfAtFinalSection()
     print("Verificando a posição do jogador na Dungeon...")
 
-    -- Obter o mundo atual e a seção da Dungeon
-    local worldIndex = getCurrentWorld()  -- Utiliza a função que já foi definida
+    local worldIndex = getCurrentWorld()  
     local sectionPositionPath = "Worlds[" .. tostring(worldIndex) .. "].Dungeon.SectionPosition"
 
-    -- Verifique se a estrutura existe
     local sectionPosition = game.Workspace:FindFirstChild("World") and game.Workspace.World:FindFirstChild("Worlds")
         and game.Workspace.World.Worlds[tostring(worldIndex)] and game.Workspace.World.Worlds[tostring(worldIndex)].Dungeon:FindFirstChild("SectionPosition")
 
     if sectionPosition then
         print("Seção encontrada na posição: " .. tostring(sectionPosition.Position))
 
-        -- Verifica a posição do jogador para determinar se ele está na seção final da Dungeon
         local character = game.Players.LocalPlayer.Character
         if character and character:FindFirstChild("HumanoidRootPart") then
             local playerPosition = character.HumanoidRootPart.Position
@@ -282,10 +277,9 @@ local function stopAutoFarmIfAtFinalSection()
 
             print("Distância do jogador para a seção final: " .. distanceToSection)
 
-            -- Se o jogador estiver próximo da posição final, pare o Auto-Farm
             if distanceToSection < 10 then
                 print("Jogador na seção final. Parando o Auto-Farm.")
-                AutoFarmEnabled = false  -- Desliga o Auto-Farm
+                AutoFarmEnabled = false 
             else
                 print("Jogador não está na seção final. Continuando o Auto-Farm.")
             end
@@ -305,10 +299,9 @@ local function returnToInitialY()
         local targetPosition = Vector3.new(humanoidRootPart.Position.X, returnY, humanoidRootPart.Position.Z)
         local targetCFrame = CFrame.new(targetPosition)
 
-        -- Criando o Tween para retorno suave
         local tween = TweenService:Create(
             humanoidRootPart,
-            TweenInfo.new(0.5, Enum.EasingStyle.Linear), -- Defina o tempo conforme necessário (0.5s é um exemplo)
+            TweenInfo.new(0.5, Enum.EasingStyle.Linear), 
             {CFrame = targetCFrame}
         )
 
@@ -358,11 +351,9 @@ MainTab:CreateToggle({
             local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
             if humanoidRootPart then
                 if Value then
-                    -- Ativa o AutoFarm, ajustando a altura Y com base em HEIGHT_OFFSET
                     humanoidRootPart.CFrame = CFrame.new(humanoidRootPart.Position.X, HEIGHT_OFFSET, humanoidRootPart.Position.Z)
                     AutoFarm()
                 else
-                    -- Desliga o AutoFarm e retorna para a posição inicial no eixo Y com um Tween suave
                     returnToInitialY()
                     AutoFarmEnabled = false
                 end
