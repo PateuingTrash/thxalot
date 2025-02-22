@@ -1,43 +1,56 @@
-
-local Rayfield = loadstring(game:HttpGet('https://raw.githubusercontent.com/UI-Interface/CustomFIeld/main/RayField.lua'))()
+local Rayfield = loadstring(game:HttpGet("https://raw.githubusercontent.com/SiriusSoftwareLtd/Rayfield/main/source.lua"))()
 
 local function showCustomLoadingScreen()
-    local ScreenGui = Instance.new("ScreenGui", game.Players.LocalPlayer.PlayerGui)
-    ScreenGui.Name = "CustomLoadingScreen"
+    local playerGui = game.Players.LocalPlayer:FindFirstChild("PlayerGui")
+    if not playerGui then return end
 
-    local Frame = Instance.new("Frame", ScreenGui)
-    Frame.Size = UDim2.new(1, 0, 1, 0)
-    Frame.BackgroundColor3 = Color3.new(0.1, 0.1, 0.1)
+    local screenGui = Instance.new("ScreenGui")
+    screenGui.Name = "CustomLoadingScreen"
+    screenGui.Parent = playerGui
 
-    local Title = Instance.new("TextLabel", Frame)
-    Title.Size = UDim2.new(0.8, 0, 0.2, 0)
-    Title.Position = UDim2.new(0.1, 0, 0.3, 0)
-    Title.Text = "[--Bey Hub--]"
-    Title.Font = Enum.Font.GothamBlack
-    Title.TextSize = 60 
-    Title.TextColor3 = Color3.new(1, 1, 1)
-    Title.BackgroundTransparency = 1
+    local frame = Instance.new("Frame", screenGui)
+    frame.Size = UDim2.new(1, 0, 1, 0)
+    frame.BackgroundColor3 = Color3.new(0.1, 0.1, 0.1)
 
-    local Subtitle = Instance.new("TextLabel", Frame)
-    Subtitle.Size = UDim2.new(0.8, 0, 0.1, 0)
-    Subtitle.Position = UDim2.new(0.1, 0, 0.5, 0)
-    Subtitle.Text = "⚔️ A New Experience in Pixel Slayer ⚔️"
-    Subtitle.Font = Enum.Font.GothamBold
-    Subtitle.TextSize = 40
-    Subtitle.TextColor3 = Color3.new(1, 1, 1)
-    Subtitle.BackgroundTransparency = 1
+    local image = Instance.new("ImageLabel", frame)
+    image.Size = UDim2.new(1, 0, 1, 0) 
+    image.Position = UDim2.new(0, 0, 0, 0) 
+    image.BackgroundTransparency = 1
+    image.Image = "rbxassetid://105796513796453" 
 
-    wait(3) 
-    ScreenGui:Destroy()
+    local title = Instance.new("TextLabel", frame)
+    title.Size = UDim2.new(0.8, 0, 0.2, 0)
+    title.Position = UDim2.new(0.1, 0, 0.3, 0)
+    title.Text = "[-- Bey Hub --]"
+    title.Font = Enum.Font.GothamBold
+    title.TextSize = 100
+    title.TextColor3 = Color3.new(1, 1, 1)
+    title.BackgroundTransparency = 1
+    title.TextStrokeTransparency = 0.5
+    title.TextStrokeColor3 = Color3.fromRGB(0,0,0) 
+    local subtitle = Instance.new("TextLabel", frame)
+    subtitle.Size = UDim2.new(0.8, 0, 0.1, 0)
+    subtitle.Position = UDim2.new(0.1, 0, 0.5, 0)
+    subtitle.Text = "⚔️ A New Experience in Pixel Slayer ⚔️"
+    subtitle.Font = Enum.Font.GothamBold
+    subtitle.TextSize = 60
+    subtitle.TextColor3 = Color3.new(1, 1, 1)
+    subtitle.BackgroundTransparency = 1
+    subtitle.TextStrokeTransparency = 0.5
+    subtitle.TextStrokeColor3 = Color3.fromRGB(0,0,0) 
+
+    wait(5)
+    screenGui:Destroy()
 end
 
 showCustomLoadingScreen()
 
 local AutoFarmEnabled = false
+local isAutoFarmRunning = false
 local AutoStatsEnabled = false
 local AutoRebirthEnabled = false
 local KillAuraEnabled = false
-local HEIGHT_OFFSET = -15
+local HEIGHT_OFFSET = -16
 local previousPositionY = nil
 local SelectedStat = "Power"
 local Hotkey = Enum.KeyCode.K 
@@ -51,8 +64,89 @@ local DAMAGE_AMOUNT = 50
 local KILL_AURA_RANGE = 200 
 local AUTO_FARM_RANGE = 200 
 local MAX_MOBS_TO_DAMAGE = 13 
-local returnY = 2
+local returnY = 15
 local MIN_SAFE_HEALTH = 100 
+local LogService = game:GetService("LogService")
+local character = player.Character or player.CharacterAdded:Wait()
+local humanoid = character:WaitForChild("Humanoid")
+local worlds = workspace.World.Worlds
+local currentWorld = nil
+local inDungeon = false 
+local AutoDungeonEnabled = false
+local countdownValue = nil
+local countdownConnection = nil
+local StartDungeon = ReplicatedStorage.Universe.Network.Remotes:WaitForChild("StartDungeon") 
+local HEIGHT_OFFSET = -15
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+local worldNames = {
+    [1] = "Peaceful Meadows",
+    [2] = "Mystical Forest",
+    [3] = "Snowy Village",
+    [4] = "Deserted Desert",
+    [5] = "Molten Underworld",
+    [6] = "Samurai Field",
+    [7] = "Underwater Coral",
+    [8] = "Galactic City"
+}
+
+local function getTeleportLocationByOrder(worldKey)
+    local nyaLocations = {}
+    for _, obj in ipairs(game.Workspace:GetChildren()) do
+        if obj.Name == "Nya~~~" then
+            table.insert(nyaLocations, obj) 
+        end
+    end
+
+    return nyaLocations[worldKey]  
+end
+
+local function teleportToLocation(worldIndex)
+    local exists = checkLocationExistence(worldIndex)
+
+    if exists then
+        local player = game:GetService("Players").LocalPlayer
+        local character = player.Character or player.CharacterAdded:Wait() 
+
+        if not character then
+            warn("Erro: Personagem não encontrado.")
+            return
+        end
+
+        local rootPart = character:FindFirstChild("HumanoidRootPart")
+        if not rootPart then
+            warn("Erro: HumanoidRootPart não encontrado.")
+            return
+        end
+
+        local world = game:GetService("Workspace"):FindFirstChild("World")
+        local worlds = world and world:FindFirstChild("Worlds")
+        local targetWorld = worlds and worlds:FindFirstChild(tostring(worldIndex))
+        local spawnParent = targetWorld and targetWorld:FindFirstChild("SpawnPoint")
+        local spawnPoint = spawnParent and spawnParent:FindFirstChild("SpawnPoint")
+
+        if spawnPoint then
+            rootPart.CFrame = spawnPoint.CFrame 
+            print("Teleporting to World " .. worldIndex)
+        else
+            Rayfield:Notify({
+                Title = "Erro de Teleporte",
+                Content = "O local de teleporte para o Mundo " .. worldIndex .. " não existe.",
+                Duration = 5,
+                Image = 93593903965796
+            })
+        end
+    else
+        Rayfield:Notify({
+            Title = "Erro de Teleporte",
+            Content = "O local de teleporte para o Mundo " .. worldIndex .. " não existe.",
+            Duration = 5,
+            Image = 93593903965796
+        })
+    end
+end
+
 
 local function multiDamageAllMobs()
     local mobsFolder = game.Workspace:WaitForChild("World"):WaitForChild("Mobs")
@@ -76,7 +170,7 @@ local function multiDamageAllMobs()
 
             local humanoid = character:FindFirstChild("Humanoid")
             if not humanoid or humanoid.Health <= MIN_SAFE_HEALTH then
-                print("MultiDamage suspended: low health.")
+                print("MultiDamage suspenso: Saúde baixa.")
                 wait(3) 
                 return
             end
@@ -142,6 +236,15 @@ local function runAutoRebirth()
 end
 
 local function AutoFarm()
+    if isAutoFarmRunning then
+        print("AutoFarm já está em execução. Ignorando nova chamada.")
+        return
+    end
+
+    print("Iniciando AutoFarm...")
+    isAutoFarmRunning = true  
+    print("Flag 'isAutoFarmRunning' definida como true.")
+
     spawn(function()
         while AutoFarmEnabled do
             local character = game.Players.LocalPlayer.Character
@@ -152,8 +255,8 @@ local function AutoFarm()
             if not humanoidRootPart or not humanoid then continue end
 
             if humanoid.Health <= MIN_SAFE_HEALTH then
-                print("AutoFarm suspended: low health.")
-                wait(3) -- Tempo suspenso
+                print("AutoFarm suspenso: Saúde baixa.")
+                wait(3)
                 continue
             end
 
@@ -196,9 +299,12 @@ local function AutoFarm()
             if not mobFound then
                 wait(5)
             else
-                wait(0.1)
+                wait(0.1)  
             end
         end
+
+        isAutoFarmRunning = false
+        print("AutoFarm finalizado. Flag 'isAutoFarmRunning' definida como false.")
     end)
 end
 
@@ -215,7 +321,7 @@ local function runKillAura()
             if not humanoidRootPart or not humanoid then continue end
 
             if humanoid.Health <= MIN_SAFE_HEALTH then
-                print("Kill Aura suspended: low health.")
+                print("Kill Aura suspensa: Saúde baixa.")
                 wait(3) 
                 continue
             end
@@ -254,43 +360,6 @@ local function runKillAura()
     end)
 end   
 
-local function getCurrentWorld()
-    return 1  -- Retorne o número do mundo atual conforme sua lógica.
-end
-
-local function stopAutoFarmIfAtFinalSection()
-    print("Verificando a posição do jogador na Dungeon...")
-
-    local worldIndex = getCurrentWorld()  
-    local sectionPositionPath = "Worlds[" .. tostring(worldIndex) .. "].Dungeon.SectionPosition"
-
-    local sectionPosition = game.Workspace:FindFirstChild("World") and game.Workspace.World:FindFirstChild("Worlds")
-        and game.Workspace.World.Worlds[tostring(worldIndex)] and game.Workspace.World.Worlds[tostring(worldIndex)].Dungeon:FindFirstChild("SectionPosition")
-
-    if sectionPosition then
-        print("Seção encontrada na posição: " .. tostring(sectionPosition.Position))
-
-        local character = game.Players.LocalPlayer.Character
-        if character and character:FindFirstChild("HumanoidRootPart") then
-            local playerPosition = character.HumanoidRootPart.Position
-            local distanceToSection = (playerPosition - sectionPosition.Position).Magnitude
-
-            print("Distância do jogador para a seção final: " .. distanceToSection)
-
-            if distanceToSection < 10 then
-                print("Jogador na seção final. Parando o Auto-Farm.")
-                AutoFarmEnabled = false 
-            else
-                print("Jogador não está na seção final. Continuando o Auto-Farm.")
-            end
-        else
-            print("HumanoidRootPart não encontrado!")
-        end
-    else
-        print("Seção não encontrada no caminho: " .. sectionPositionPath)
-    end
-end
-
 local function returnToInitialY()
     local character = game.Players.LocalPlayer.Character
     local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
@@ -308,11 +377,327 @@ local function returnToInitialY()
         tween:Play()
         tween.Completed:Wait()
 
-        print("Retornando para a posição Y =", returnY)
     else
         print("HumanoidRootPart não encontrado ao retornar!")
     end
 end
+
+local function isMobAlive(mob)
+    return mob and mob:FindFirstChild("Humanoid") and mob.Humanoid.Health > 0
+end
+
+local function redeemCodes()
+    local codesRemote = ReplicatedStorage.Universe.Network.Remotes.Codes
+    
+    local codes = {"epidub","1MILLIONVISITS","spellbound","morediamonds","spirits","release"}  
+    
+    for _, code in ipairs(codes) do
+        pcall(function()
+            codesRemote:FireServer(code)
+        end)
+        wait(1)  
+    end
+end
+
+local function getDistanceToWorldHitbox(worldIndex)
+    local world = workspace.World.Worlds[tostring(worldIndex)]
+    local hitbox = world and world.DungeonPortal and world.DungeonPortal:FindFirstChild("Hitbox")
+
+    if hitbox then
+        local distance = (hitbox.Position - game.Players.LocalPlayer.Character.HumanoidRootPart.Position).Magnitude
+
+        print("Distância para o mundo " .. worldIndex .. " Hitbox: " .. distance)
+
+        return distance
+    else
+        print("Hitbox do mundo " .. worldIndex .. " não encontrada!")
+        return math.huge
+    end
+end
+
+function monitorDungeonProgressAndMobs()
+    while isAutoFarmRunning do
+        local playerGui = game.Players.LocalPlayer:FindFirstChild("PlayerGui")
+        if playerGui then
+            local mainGui = playerGui:FindFirstChild("MainGui")
+            if mainGui then
+                local dungeon = mainGui:FindFirstChild("Dungeon")
+                if dungeon then
+                    local currentWave = dungeon:FindFirstChild("CurrentWave")
+                    local mobsLeft = dungeon:FindFirstChild("MobsLeft")  
+                    if currentWave and mobsLeft and mobsLeft:IsA("TextLabel") then
+                         local waveText = currentWave.Text
+                        local mobsRemaining = tonumber(mobsLeft.ContentText:match("%d+")) or 0  
+
+                        if waveText == "Wave 50/50" and mobsRemaining == 0 or humanoid.Health == 0 then
+                            print("Dungeon finalizada! Parando AutoFarm temporariamente...")
+
+                            print("Flag 'isAutoFarmRunning' antes de parar: " .. tostring(isAutoFarmRunning))
+
+                            returnToInitialY()
+                            inDungeon = false
+                            AutoFarmEnabled = false
+                            isAutoFarmRunning = false 
+                            KillAuraEnabled = false 
+
+                            wait(5) 
+                            
+                            print("Reiniciando AutoFarm...") 
+                            AutoFarmEnabled = true 
+                            isAutoFarmRunning = true 
+
+                            print("Flag 'isAutoFarmRunning' após reiniciar: " .. tostring(isAutoFarmRunning))
+
+                            AutoFarm()  
+                            
+                            return  
+                        end
+                    else
+                        warn("Elemento 'CurrentWave' ou 'MobsLeft' não encontrado ou inválido!")
+                    end
+                end
+            end
+        end
+
+        wait(0.05) 
+    end
+end
+local function startAutoDungeon()
+    local character = game.Players.LocalPlayer.Character
+    local humanoidRootPart = character and character:FindFirstChild("HumanoidRootPart")
+    
+    if humanoidRootPart and (humanoidRootPart.Position - hitbox.Position).Magnitude <= 5 then  
+        print("Jogador na hitbox. Iniciando dungeon...")
+
+        StartDungeon:FireServer() 
+    else
+        print("Jogador não está na hitbox. Aguardando entrada.")
+    end
+end
+
+local function checkCountdown()
+    if not currentWorld then
+        print("Erro: currentWorld não está definido corretamente.")
+        return
+    end
+
+    print("Verificando countdown para o mundo " .. tostring(currentWorld))
+
+    local worldPath = workspace.World.Worlds:FindFirstChild(tostring(currentWorld))
+    if not worldPath then
+        print("Erro: O mundo " .. tostring(currentWorld) .. " não foi encontrado.")
+        return
+    end
+
+    local countdownPath = worldPath:FindFirstChild("DungeonPortal")
+    if not countdownPath then
+        print("Erro: DungeonPortal não encontrado no mundo " .. tostring(currentWorld))
+        return
+    end
+
+    local hitboxPath = countdownPath:FindFirstChild("Hitbox")
+    if not hitboxPath then
+        print("Erro: Hitbox não encontrada no mundo " .. tostring(currentWorld))
+        return
+    end
+
+    local character = game.Players.LocalPlayer.Character
+    local humanoidRootPart = character and character:FindFirstChild("HumanoidRootPart")
+    
+    local isPlayerInHitbox = false
+    if humanoidRootPart and (humanoidRootPart.Position - hitboxPath.Position).Magnitude <= 5 then  
+        isPlayerInHitbox = true
+    end
+
+    if isPlayerInHitbox then
+        print("Jogador detectado na hitbox. Iniciando dungeon...")
+
+        StartDungeon:FireServer()  
+        print("Jogador não está na hitbox. Aguardando entrada.")
+    end
+end
+local function moveToWorldHitbox()
+    if inDungeon then
+        print("A dungeon ainda não terminou. Aguardando...")
+        return
+    end
+
+    inDungeon = true 
+
+    local closestDistance = math.huge
+    local targetHitbox = nil
+    local closestWorldIndex = nil
+
+    print("Iniciando a busca pela Hitbox mais próxima...")
+
+    for i = 1, 8 do
+        local distance = getDistanceToWorldHitbox(i)
+        
+        if distance < closestDistance then
+            closestDistance = distance
+            closestWorldIndex = i
+            targetHitbox = workspace.World.Worlds[tostring(i)].DungeonPortal.Hitbox
+
+            print("Novo mundo mais próximo encontrado: " .. i .. " com distância: " .. closestDistance)
+        end
+    end
+
+    if targetHitbox then
+        print("Movendo para o mundo " .. closestWorldIndex .. " com a Hitbox localizada em: " .. tostring(targetHitbox.Position))
+
+        local character = game.Players.LocalPlayer.Character
+        local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+        if humanoidRootPart then
+   
+            local newCFrame = CFrame.new(targetHitbox.Position)
+            character:SetPrimaryPartCFrame(newCFrame)  -- Move o personagem inteiro
+
+            -- Depuração: Informar quando o teletransporte for concluído
+            print("Teleport completo para o mundo " .. closestWorldIndex)
+            currentWorld = closestWorldIndex
+            checkCountdown() 
+        else
+            print("Erro: HumanoidRootPart não encontrado!")
+        end
+    else
+        -- Depuração: Caso não tenha encontrado uma Hitbox válida
+        print("Erro: Não foi possível encontrar a Hitbox do mundo dentro do alcance.")
+    end
+end
+
+local function updatePlayerStats(walkSpeed, jumpPower)
+    local character = LocalPlayer.Character
+    if character then
+        local humanoid = character:FindFirstChildOfClass("Humanoid")
+        if humanoid then
+            humanoid.WalkSpeed = walkSpeed
+            humanoid.JumpPower = jumpPower
+        end
+    end
+end
+
+function clearConsole()
+    for i = 1, 50 do  
+        print("\n")
+    end
+end
+--flyff
+local isFlying = false
+local flySpeed = 50
+local speed = 0
+local maxspeed = flySpeed
+local ctrl = {f = 0, b = 0, l = 0, r = 0}
+local lastctrl = {f = 0, b = 0, l = 0, r = 0}
+
+repeat wait() until LocalPlayer and LocalPlayer.Character
+local torso = LocalPlayer.Character:FindFirstChild("Torso") or LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+local plr = LocalPlayer
+local mouse = plr:GetMouse()
+
+-- Fly function
+local function Fly()
+    local bg = Instance.new("BodyGyro", torso)
+    bg.P = 9e4
+    bg.maxTorque = Vector3.new(9e9, 9e9, 9e9)
+    bg.cframe = torso.CFrame
+    
+    local bv = Instance.new("BodyVelocity", torso)
+    bv.maxForce = Vector3.new(9e9, 9e9, 9e9) -- Força máxima de movimento
+    bv.velocity = Vector3.new(0, 0.1, 0)
+
+    -- Loop do voo
+    repeat wait()
+        LocalPlayer.Character.Humanoid.PlatformStand = true
+
+        -- Ajuste de velocidade 
+        if ctrl.l + ctrl.r ~= 0 or ctrl.f + ctrl.b ~= 0 then
+            speed = speed + 0.5 + (speed / maxspeed)
+            if speed > maxspeed then speed = maxspeed end
+        elseif speed ~= 0 then
+            speed = speed - 1
+            if speed < 0 then speed = 0 end
+        end
+
+        -- Movimento do personagem 
+        if (ctrl.l + ctrl.r) ~= 0 or (ctrl.f + ctrl.b) ~= 0 then
+            bv.velocity = ((game.Workspace.CurrentCamera.CoordinateFrame.LookVector * (ctrl.f + ctrl.b)) +
+                           ((game.Workspace.CurrentCamera.CoordinateFrame * CFrame.new(ctrl.l + ctrl.r, (ctrl.f + ctrl.b) * 0.2, 0).p) - 
+                           game.Workspace.CurrentCamera.CoordinateFrame.p)) * speed
+            lastctrl = {f = ctrl.f, b = ctrl.b, l = ctrl.l, r = ctrl.r}
+        elseif speed ~= 0 then
+            bv.velocity = ((game.Workspace.CurrentCamera.CoordinateFrame.LookVector * (lastctrl.f + lastctrl.b)) +
+                           ((game.Workspace.CurrentCamera.CoordinateFrame * CFrame.new(lastctrl.l + lastctrl.r, (lastctrl.f + lastctrl.b) * 0.2, 0).p) - 
+                           game.Workspace.CurrentCamera.CoordinateFrame.p)) * speed
+        else
+            bv.velocity = Vector3.new(0, 0.1, 0) 
+        end
+
+        bg.cframe = game.Workspace.CurrentCamera.CoordinateFrame * CFrame.Angles(-math.rad((ctrl.f + ctrl.b) * 50 * speed / maxspeed), 0, 0)
+    until not isFlying
+
+    ctrl = {f = 0, b = 0, l = 0, r = 0}
+    lastctrl = {f = 0, b = 0, l = 0, r = 0}
+    speed = 0
+    bg:Destroy()
+    bv:Destroy()
+    LocalPlayer.Character.Humanoid.PlatformStand = false
+end
+
+mouse.KeyDown:connect(function(key)
+    key = key:lower()
+    if key == "e" then
+        isFlying = not isFlying
+        if isFlying then
+            Fly()
+        end
+    elseif key == "w" then
+        ctrl.f = 1
+    elseif key == "s" then
+        ctrl.b = -1
+    elseif key == "a" then
+        ctrl.l = -1
+    elseif key == "d" then
+        ctrl.r = 1
+    end
+end)
+
+mouse.KeyUp:connect(function(key)
+    key = key:lower()
+    if key == "w" then
+        ctrl.f = 0
+    elseif key == "s" then
+        ctrl.b = 0
+    elseif key == "a" then
+        ctrl.l = 0
+    elseif key == "d" then
+        ctrl.r = 0
+    end
+end)
+
+
+-- Infinite Jump Setup
+_G.infinjump = false
+local function ToggleInfiniteJump(state)
+    _G.infinjump = state
+    if _G.infinjump then
+        print("Infinite Jump Activated!")
+    else
+        print("Infinite Jump Deactivated!")
+    end
+end
+
+-- Connect Infinite Jump key detection
+mouse.KeyDown:connect(function(k)
+    if _G.infinjump and k:byte() == 32 then -- Space key
+        local hum = LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+        if hum then
+            hum:ChangeState("Jumping")
+            wait()
+            hum:ChangeState("Seated")
+        end
+    end
+end)
+
 local Window = Rayfield:CreateWindow({
     Name = "Bey Hub - Pixel Slayer ⚔️",
     LoadingTitle = "[--Bey Hub--]",
@@ -321,12 +706,19 @@ local Window = Rayfield:CreateWindow({
         Enabled = false,
         FolderName = "FarmConfig",
         FileName = "Config"
-    }
+	}
 })
 
-local MainTab = Window:CreateTab("Main", 4483362458)
-local SettingsTab = Window:CreateTab("Settings", 4483362459) 
+--tabs
+local MainTab = Window:CreateTab("Main", 101560757996891)
+local TeleportTab = Window:CreateTab("Teleport", 70762711749215) 
+local PlayersTab = Window:CreateTab("Player", 84473297367528)
+local MiscTab = Window:CreateTab("Misc", 132867342701584)
 
+--section1
+MainTab:CreateSection("Farm")
+
+--height
 MainTab:CreateSlider({
     Name = " ⬆ Height Offset ⬇",
     Range = {-20, 20},  
@@ -339,9 +731,9 @@ MainTab:CreateSlider({
     end,
     ShowValue = false
 })
-
+--autof
 MainTab:CreateToggle({
-    Name = "Auto Farm ⏳",
+    Name = "⏳ Auto Farm",
     CurrentValue = false,
     Flag = "AutoFarmToggle",
     Callback = function(Value)
@@ -351,11 +743,17 @@ MainTab:CreateToggle({
             local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
             if humanoidRootPart then
                 if Value then
-                    humanoidRootPart.CFrame = CFrame.new(humanoidRootPart.Position.X, HEIGHT_OFFSET, humanoidRootPart.Position.Z)
-                    AutoFarm()
+                    if inDungeon then
+                        isAutoFarmRunning = false  -- Reseta antes de iniciar
+                        AutoFarm()
+                        monitorDungeonProgressAndMobs()
+                    else
+                        print("Esperando entrar na dungeon...")
+                    end
                 else
                     returnToInitialY()
                     AutoFarmEnabled = false
+                    isAutoFarmRunning = false
                 end
             else
                 print("HumanoidRootPart não encontrado!")
@@ -365,8 +763,37 @@ MainTab:CreateToggle({
         end
     end
 })
+--autod
 MainTab:CreateToggle({
-    Name = "Kill Aura ☠️",
+    Name = "🏰 Auto Dungeon",
+    CurrentValue = false,
+    Flag = "AutoDungeonToggle",
+    Callback = function(Value)
+        AutoDungeonEnabled = Value
+        if Value then
+            print("Auto Dungeon ativado.")
+            task.spawn(function()
+                while AutoDungeonEnabled do
+                    if inDungeon then
+                        print("Dungeon em andamento. Monitorando progresso...")
+                        monitorDungeonProgressAndMobs()  
+                    else
+                        print("Dungeon finalizada. Retornando à hitbox...")
+                        moveToWorldHitbox()  
+                        checkCountdown()      
+                    end
+
+                    wait(1)  
+                end
+            end)
+        else
+            print("Auto Dungeon desativado.")
+        end
+    end
+})
+--killa
+MainTab:CreateToggle({
+    Name = "☠️ Kill Aura",
     CurrentValue = false,
     Flag = "KillAuraToggle",
     Callback = function(Value)
@@ -376,9 +803,12 @@ MainTab:CreateToggle({
         end
     end
 })
+--section2
+MainTab:CreateSection("Extras")
 
+--autost
 MainTab:CreateToggle({
-    Name = "Auto Stats (Only Power) ⚡",
+    Name = "⚡ Auto Stats (Only Power)",
     CurrentValue = false,
     Flag = "AutoStatsToggle",
     Callback = function(Value)
@@ -388,9 +818,9 @@ MainTab:CreateToggle({
         end
     end
 })
-
+--autor
 MainTab:CreateToggle({
-    Name = "Auto Rebirth ♻️",
+    Name = "♻️ Auto Rebirth",
     CurrentValue = false,
     Flag = "AutoRebirthToggle",
     Callback = function(Value)
@@ -400,24 +830,375 @@ MainTab:CreateToggle({
         end
     end
 })
+--claim
+MainTab:CreateButton({
+    Name = "🎫 Claim Codes",
+    Callback = function()
+        print("Botão pressionado")
+        redeemCodes() 
+    end,
+})
 
-SettingsTab:CreateDropdown({
-    Name = "Select Hotkey for Menu 🧑‍💻",
-    Options = {"K", "L", "M", "N", "O"},
-    CurrentOption = "K", 
-    Flag = "HotkeySelection",
-    Callback = function(Option)
-        Hotkey = Enum.KeyCode[Option]
+for i = 1, 8 do  
+    local worldKey = i  
+    local worldName = worldNames[i]
+
+    TeleportTab:CreateButton({
+        Name = "Teleport to " .. worldName .. " (World " .. worldKey .. ")",
+        Flag = "TeleportButton_" .. worldKey,
+        Callback = function()
+            local nyaLocation = getTeleportLocationByOrder(worldKey)  
+            
+            if nyaLocation then
+                local player = game.Players.LocalPlayer
+                local character = player.Character or player.CharacterAdded:Wait()
+
+                if not character then
+                    warn("Erro: Personagem não encontrado.")
+                    return
+                end
+
+                local rootPart = character:FindFirstChild("HumanoidRootPart")
+                if not rootPart then
+                    warn("Erro: HumanoidRootPart não encontrado.")
+                    return
+                end
+
+                rootPart.CFrame = nyaLocation.CFrame
+                print("Teleportando para o Mundo " .. worldKey)
+
+                Rayfield:Notify({
+                    Title = "Teleport Success ✅",
+                    Content = "You have been teleported to " .. worldName .. " (World " .. worldKey .. ") 🌍",
+                    Duration = 3,
+                    Image = 93612699557441
+                })
+            else
+                warn("Nya~~~ não encontrado para o Mundo " .. worldKey)
+                Rayfield:Notify({
+                    Title = "Teleport Error ❌",
+                    Content = "You are too far from " .. worldName .. " (World " .. worldKey .. ") 🌍",
+                    Duration = 3,
+                    Image = 93593903965796
+                })
+            end
+        end
+    })
+end
+--plrcont
+--section3
+PlayersTab:CreateSection("Player Features")
+
+--walksliderobs
+PlayersTab:CreateSlider({
+    Name = "🏃 WalkSpeed",               
+    Range = {16, 500},                
+    Increment = 1,                    
+    Suffix = "Studs",                
+    CurrentValue = 16,                
+    Flag = "WalkSpeedSlider",         
+    Callback = function(Value)
+        updatePlayerStats(Value, game.Players.LocalPlayer.Character.Humanoid.JumpPower)
+        print("WalkSpeed ajustado para " .. Value)
+    end,
+    ShowValue = false                 
+})
+
+--jumpobs 
+PlayersTab:CreateSlider({
+    Name = "⏫ JumpPower",              
+    Range = {50, 500},               
+    Increment = 1,             
+    Suffix = "Power",                
+    CurrentValue = 50,               
+    Flag = "JumpPowerSlider",         
+    Callback = function(Value)
+        -- Atualiza o JumpPower do jogador
+        updatePlayerStats(game.Players.LocalPlayer.Character.Humanoid.WalkSpeed, Value)
+        print("JumpPower ajustado para " .. Value)
+    end,
+    ShowValue = false               
+})
+
+--infinitejumpobs
+PlayersTab:CreateToggle({
+    Name = "∞ Infinite Jump",           
+    CurrentValue = false,             
+    Flag = "InfiniteJumpToggle",     
+    Callback = function(Value)
+        _G.infinjump = Value         
+        if Value then
+            print("Infinite Jump ativado.")
+        else
+            print("Infinite Jump desativado.")
+        end
     end
 })
 
+--flyobs
+PlayersTab:CreateToggle({
+    Name = "🕊️ Fly",                    
+    CurrentValue = false,            
+    Flag = "FlyButton",               
+    Callback = function()
+        isFlying = not isFlying
+        if isFlying then
+            Fly()
+        else
+            print("Fly mode desativado")
+        end
+    end
+})
+
+--flysliderobs
+PlayersTab:CreateSlider({
+    Name = "⚡ Fly Speed",               
+    Range = {10, 200},                
+    Increment = 1,                    
+    Suffix = "Speed",                 
+    CurrentValue = 50,               
+    Flag = "FlySpeedSlider",          
+    Callback = function(Value)
+        flySpeed = Value
+        maxspeed = Value
+        print("Fly Speed ajustado para " .. Value)
+    end,
+    ShowValue = false                 
+})
+
+--section4
+PlayersTab:CreateSection("Others")
+
+--inputobs
+PlayersTab:CreateInput({
+    Name = "📝 Enter Player Name",      
+    Flag = "PlayerNameInput",          
+    PlaceholderText = "Enter the target player's name...", 
+    Callback = function(inputText)
+        _G.TeleportToTarget = inputText
+        print("Nome do jogador de destino definido como: " .. inputText)
+    end
+})
+
+--teleportobs
+PlayersTab:CreateButton({
+    Name = "🛸 Teleport to Player",     
+    Flag = "TeleportButton",        
+    Callback = function()
+        if _G.TeleportToTarget and _G.TeleportToTarget ~= "" then
+            local players = game:GetService("Players")
+            local targetName = _G.TeleportToTarget
+            local localPlayer = players.LocalPlayer
+            local targetPlayer = nil
+
+            local function findPlayerByPriority(targetName)
+                local exactUsernameMatch, exactDisplayNameMatch = nil, nil
+                local partialUsernameMatch, partialDisplayNameMatch = nil, nil
+
+                for _, player in pairs(players:GetPlayers()) do
+                    if player.Name == targetName then
+                        exactUsernameMatch = player  
+                    elseif player.DisplayName == targetName then
+                        exactDisplayNameMatch = player 
+                    elseif string.find(player.Name:lower(), targetName:lower()) then
+                        partialUsernameMatch = player 
+                    elseif string.find(player.DisplayName:lower(), targetName:lower()) then
+                        partialDisplayNameMatch = player  
+                    end
+                end
+
+                return exactUsernameMatch or exactDisplayNameMatch or partialUsernameMatch or partialDisplayNameMatch
+            end
+
+            targetPlayer = findPlayerByPriority(targetName)
+
+            if targetPlayer and targetPlayer.Character and targetPlayer.Character:FindFirstChild("HumanoidRootPart") then
+                localPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(targetPlayer.Character.HumanoidRootPart.Position)
+                Rayfield:Notify({
+                    Title = "Teleport Success",
+                    Content = "Você foi teleportado para " .. targetPlayer.Name,
+                    Duration = 5,
+                    Image = 93612699557441
+                })
+            else
+                Rayfield:Notify({
+                    Title = "Teleport Error",
+                    Content = "Jogador de destino não encontrado ou inválido!",
+                    Duration = 5,
+                    Image = 93593903965796
+                })
+            end
+        else
+            Rayfield:Notify({
+                Title = "Error",
+                Content = "Por favor, insira um nome válido de jogador.",
+                Duration = 5,
+                Image = 93593903965796
+            })
+        end
+    end
+})
+--antiafkobs
+local AntiAFKScript
+
+PlayersTab:CreateToggle({
+    Name = "🕑 Enable Anti-AFK",
+    CurrentValue = false,
+    Flag = "AntiAFKToggle",
+    Callback = function(Value)
+        if Value then
+            AntiAFKScript = loadstring(game:HttpGet("https://raw.githubusercontent.com/hassanxzayn-lua/Anti-afk/main/antiafkbyhassanxzyn"))()
+            Rayfield:Notify({
+                Title = "Anti-AFK Activated ✔️",
+                Content = "Anti-AFK has been successfully activated! ✨",
+                Duration = 5,
+                Image = 93612699557441
+            })
+        else
+            if AntiAFKScript then
+                AntiAFKScript:Destroy()  
+                AntiAFKScript = nil
+            end
+            Rayfield:Notify({
+                Title = "Anti-AFK Deactivated ❌",
+                Content = "You may now be kicked for being AFK.",
+                Duration = 5,
+                Image = 76561564615109
+            })
+        end
+    end
+})
+--miscontent
+-- Clear Console
+MiscTab:CreateButton({
+    Name = "🧹 Clear Console",  
+    Callback = function()
+        clearConsole()
+        Rayfield:Notify({
+            Title = "Console cleared ✅",
+            Content = "You can see what you need now.",
+            Duration = 5,
+            Image = 125494614522857
+        })
+    end
+})
+
+-- Show Game Status
+MiscTab:CreateButton({
+    Name = "ℹ️ Game Status",  
+    Callback = function()
+        local status = "Game Status:\n"
+        status = status .. "AutoFarm: " .. (AutoFarmEnabled and "Enabled" or "Disabled") .. "\n"
+        status = status .. "AutoDungeon: " .. (AutoDungeonEnabled and "Enabled" or "Disabled") .. "\n"
+        status = status .. "KillAura: " .. (KillAuraEnabled and "Enabled" or "Disabled") .. "\n"
+        status = status .. "AutoStats: " .. (AutoStatsEnabled and "Enabled" or "Disabled") .. "\n"
+        status = status .. "AutoRebirth: " .. (AutoRebirthEnabled and "Enabled" or "Disabled") .. "\n"
+
+        Rayfield:Notify({
+            Title = "Game Status",
+            Content = status,
+            Duration = 5,
+            Image = 86141121364700  
+        })
+
+        print(status)  
+    end
+})
+
+-- Reset Settings
+MiscTab:CreateButton({
+    Name = "🔄 Reset Settings", 
+    Callback = function()
+        AutoFarmEnabled = false
+        AutoDungeonEnabled = false
+        KillAuraEnabled = false
+        AutoStatsEnabled = false
+        AutoRebirthEnabled = false
+        HEIGHT_OFFSET = -15
+        Rayfield:Notify({
+            Title = "Settings Reseted ✅",
+            Content = "Main toggles are been reseted.",
+            Duration = 3,
+            Image = 93612699557441
+        })
+    end
+})
+
+-- Volume Control
+MiscTab:CreateSlider({
+    Name = "🎵 Music Volume",         
+    Range = {0, 1},                   
+    Increment = 0.1,                
+    Suffix = "%",                   
+    CurrentValue = 0.5,              
+    Flag = "MusicVolumeSlider",       
+    Callback = function(Value)
+        local musicFolder = game:GetService("SoundService"):FindFirstChild("Music")
+        if musicFolder then
+            for _, music in pairs(musicFolder:GetChildren()) do
+                if music:IsA("Sound") then
+                    music.Volume = Value
+                end
+            end
+        end
+        print("Music Volume ajustado para " .. (Value * 100) .. "%")
+    end,
+    ShowValue = true                 
+})
+
+local screenGui = Instance.new("ScreenGui")
+screenGui.Parent = playerGui
+
+-- atualizar as horas
+local function createClock()
+    local existingClock = playerGui:FindFirstChild("ClockGui")
+    if existingClock then
+        return  
+    end
+
+    local screenGui = Instance.new("ScreenGui")
+    screenGui.Name = "ClockGui"
+    screenGui.Parent = playerGui
+
+    local timeLabel = Instance.new("TextLabel")
+    timeLabel.Size = UDim2.new(0, 200, 0, 50) 
+    timeLabel.Position = UDim2.new(1, -220, 0, 10)  
+    timeLabel.TextColor3 = Color3.fromRGB(255, 255, 255)  
+    timeLabel.BackgroundTransparency = 1  
+    timeLabel.TextSize = 30 
+    timeLabel.Font = Enum.Font.SourceSansBold  
+    timeLabel.Parent = screenGui
+
+    local function updateTime()
+        while true do
+            local time = os.date("%H:%M:%S")  
+            timeLabel.Text = time  
+            wait(1)  
+        end
+    end
+
+    updateTime()
+end
+
+createClock()
+
+player.CharacterAdded:Connect(function()
+
+    wait(1)
+    createClock()
+end)
+
+--thxnotf
 Rayfield:Notify({
     Title = "Thank You for Playing!",
     Content = "This script was made by zBeyond. Enjoy the game and have fun!",
-    Duration = 7
+    Duration = 7,
+    Image = 138489881558812
 })
+--updnotf
 Rayfield:Notify({
     Title = "⚙️ UPD v0.02 ⚙️",
-    Content = "🛠️ Fixing crash. 🛠️",
-    Duration = 9
+    Content = "🛠️ Load, AutoFarm/KillAura fixed. A lot of features added.",
+    Duration = 9,
+    Image = 88165564049523
 })
